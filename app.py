@@ -3,6 +3,7 @@
 
 import numpy as np
 import os
+import datetime as dt
 
 import sqlalchemy
 from sqlalchemy.ext.automap import automap_base
@@ -82,10 +83,39 @@ def stations():
         station_dict["id"] = station.id
         station_dict["name"] = station.name
         all_stations.append(station_dict)
-        
-        
+
     return jsonify(all_stations)
 
+
+@app.route("/api/v1.0/tobs")
+def tobs():
+    """Return a list of all temperature observations names"""
+
+    # Query the data
+    session = Session(engine)
+
+    maxdate = session.query(Measurement.date).order_by(Measurement.date.desc()).first()
+    mdate = maxdate[0]
+    year = int(mdate[0:4])
+    month = int(mdate[5:7])
+    day = int(mdate[8:10])
+    
+    query_date = dt.date(year, month, day) - dt.timedelta(days=365)
+
+    
+    results = session.query(Measurement.date, Measurement.tobs).filter(Measurement.station == 'USC00519281').filter(Measurement.date >= query_date)
+
+    # close the session to end the communication with the database
+    session.close()
+    
+    all_temps = []
+    for temp in results:
+        temp_dict = {}
+        temp_dict["date"] = temp.date
+        temp_dict["tobs"] = temp.tobs
+        all_temps.append(temp_dict)
+                
+    return jsonify(all_temps)
 
 if __name__ == '__main__':
     app.run(debug=True)
