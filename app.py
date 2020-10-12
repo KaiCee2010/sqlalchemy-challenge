@@ -8,7 +8,7 @@ import datetime as dt
 import sqlalchemy
 from sqlalchemy.ext.automap import automap_base
 from sqlalchemy.orm import Session
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, func
 
 from flask import Flask, jsonify
 
@@ -51,9 +51,9 @@ def welcome():
 
 @app.route("/api/v1.0/precipitation")
 def precipitation():
-    """Return a list of all passenger names"""
+    """Return a dictionary of all precipitation data"""
 
-    # Query all passengers
+    # Query all measurements
     session = Session(engine)
     results = session.query(Measurement).all()
 
@@ -68,9 +68,9 @@ def precipitation():
 
 @app.route("/api/v1.0/stations")
 def stations():
-    """Return a list of all passenger names"""
+    """Return a list of all stations"""
 
-    # Query all passengers
+    # Query all stations
     session = Session(engine)
     results = session.query(Station).all()
 
@@ -89,7 +89,7 @@ def stations():
 
 @app.route("/api/v1.0/tobs")
 def tobs():
-    """Return a list of all temperature observations names"""
+    """Return a list of all temperature observations"""
 
     # Query the data
     session = Session(engine)
@@ -103,7 +103,8 @@ def tobs():
     query_date = dt.date(year, month, day) - dt.timedelta(days=365)
 
     
-    results = session.query(Measurement.date, Measurement.tobs).filter(Measurement.station == 'USC00519281').filter(Measurement.date >= query_date)
+    results = session.query(Measurement.date, Measurement.tobs).filter(Measurement.station == 'USC00519281').\
+        filter(Measurement.date >= query_date)
 
     # close the session to end the communication with the database
     session.close()
@@ -116,6 +117,53 @@ def tobs():
         all_temps.append(temp_dict)
                 
     return jsonify(all_temps)
+
+
+@app.route("/api/v1.0/<start>")
+def start(start):
+    """Return a list of all temperature observations"""
+        
+    # Query the data
+    session = Session(engine)
+
+    results = session.query(func.min(Measurement.tobs), func.avg(Measurement.tobs), func.max(Measurement.tobs)).\
+        filter(Measurement.date >= start).all()
+
+    # close the session to end the communication with the database
+    session.close()
+
+    all_temps = []
+    temp_dict = {}
+    temp_dict['TMIN'] = results[0][0]
+    temp_dict['TAVG'] = results[0][1]
+    temp_dict['TMAX'] = results[0][2]
+    all_temps.append(temp_dict)
+
+    return jsonify(all_temps)
+
+
+@app.route("/api/v1.0/<start>/<end>")
+def start_end(start, end):
+    """Return a list of all temperature observations"""
+        
+    # Query the data
+    session = Session(engine)
+
+    results = session.query(func.min(Measurement.tobs), func.avg(Measurement.tobs), func.max(Measurement.tobs)).\
+        filter(Measurement.date >= start).filter(Measurement.date <= end).all()
+
+    # close the session to end the communication with the database
+    session.close()
+
+    all_temps = []
+    temp_dict = {}
+    temp_dict['TMIN'] = results[0][0]
+    temp_dict['TAVG'] = results[0][1]
+    temp_dict['TMAX'] = results[0][2]
+    all_temps.append(temp_dict)
+
+    return jsonify(all_temps)
+
 
 if __name__ == '__main__':
     app.run(debug=True)
