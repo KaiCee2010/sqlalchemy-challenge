@@ -40,12 +40,14 @@ app = Flask(__name__)
 def welcome():
     """List all available api routes."""
     return (
-        f"Available Routes:<br/>"
-        f"/api/v1.0/precipitation<br/>"
+        f"Available Routes:<br>"
+        f"<em>Please enter dates as yyyy-mm-dd</em><br><br>"
+        f"/api/v1.0/precipitation<br>"
         f"/api/v1.0/stations<br>"
+        f"/api/v1.0/stations_mostactive<br>"
         f"/api/v1.0/tobs<br>"
-        f"/api/v1.0/<start><br>"
-        f"/api/v1.0/<start>/<end><br>"
+        f"/api/v1.0/START_DATE<br>"
+        f"/api/v1.0/START_DATE/END_DATE<br>"
     )
 
 
@@ -86,6 +88,27 @@ def stations():
 
     return jsonify(all_stations)
 
+@app.route("/api/v1.0/stations_mostactive")
+def stations_mostactive():
+    """Return a list of all stations"""
+
+    # Query all stations
+    session = Session(engine)
+    most_active = session.query(Measurement.station, func.count(Measurement.station)\
+        .label('total')).group_by(Measurement.station).order_by(func.count(Measurement.station).label('total').desc()).all()
+
+    # close the session to end the communication with the database
+    session.close()
+    
+    all_stations = []
+    for station in most_active:
+        station_dict = {}
+        station_dict["Name"] = station.station
+        station_dict["Record Count"] = station.total
+        all_stations.append(station_dict)
+
+    return jsonify(all_stations)
+
 
 @app.route("/api/v1.0/tobs")
 def tobs():
@@ -95,15 +118,14 @@ def tobs():
     session = Session(engine)
 
     maxdate = session.query(Measurement.date).order_by(Measurement.date.desc()).first()
-    mdate = maxdate[0]
-    year = int(mdate[0:4])
-    month = int(mdate[5:7])
-    day = int(mdate[8:10])
+    max_date = dt.datetime.strptime(maxdate[0], '%Y-%m-%d').date()
     
-    query_date = dt.date(year, month, day) - dt.timedelta(days=365)
+    query_date = max_date - dt.timedelta(days=365)
 
-    
-    results = session.query(Measurement.date, Measurement.tobs).filter(Measurement.station == 'USC00519281').\
+    most_active = session.query(Measurement.station, func.count(Measurement.station)\
+        .label('total')).group_by(Measurement.station).order_by(func.count(Measurement.station).label('total').desc()).first()
+
+    results = session.query(Measurement.date, Measurement.tobs).filter(Measurement.station == most_active[0]).\
         filter(Measurement.date >= query_date)
 
     # close the session to end the communication with the database
