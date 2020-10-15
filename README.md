@@ -4,7 +4,9 @@ This repository is for the sqlalchemy - challenge homework.  It contains:
 * Climate.ipynb
 * App.py
 * Resources folder
-* Output folder 
+    * contains source data
+* Output folder
+    * contains pngs of plots
 
 
 ## Climate.ipynb
